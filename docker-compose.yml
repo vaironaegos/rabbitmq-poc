@@ -1,0 +1,72 @@
+version: '3'
+services:
+  api:
+    container_name: mail-service-api
+    image: webdevops/php-nginx-dev:8.1
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      - WEB_DOCUMENT_ROOT=/app/public
+      - PHP_DATE_TIMEZONE=America/Sao_Paulo
+      - PHP_DISPLAY_ERRORS=1
+      - PHP_MEMORY_LIMIT=256M
+      - PHP_MAX_EXECUTION_TIME=120
+      - PHP_POST_MAX_SIZE=50M
+      - PHP_UPLOAD_MAX_FILESIZE=50M
+      - PHP_DEBUGGER=xdebug
+      - PHP_IDE_CONFIG=serverName=_
+      - XDEBUG_MODE=debug
+      - XDEBUG_DISCOVER_CLIENT_HOST=0
+      - XDEBUG_IDE_KEY=PHPSTORM
+      - XDEBUG_MAX_NESTING_LEVEL=1500
+      - XDEBUG_START_WITH_REQUEST=yes
+      - XDEBUG_CLIENT_HOST=host.docker.internal
+      - XDEBUG_CLIENT_PORT=9003
+      - XDEBUG_OUTPUT_DIR=/app/.xdebug
+      - TZ=America/Sao_Paulo
+    ports:
+      - '8081:80'
+    networks:
+      - mail-service-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - consumer
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: mail-service-rabbitmq
+    hostname: 'rabbitmq-dev'
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - .docker/rabbitmq/data/:/var/lib/rabbitmq/
+      - .docker/rabbitmq/log/:/var/log/rabbitmq
+    networks:
+      - mail-service-network
+
+  consumer:
+    container_name: mail-service-consumer
+    restart: always
+    image: webdevops/php-nginx-dev:8.1
+    working_dir: /app
+    environment:
+      - PHP_DISPLAY_ERRORS=1
+      - PHP_MEMORY_LIMIT=512M
+      - PHP_DATE_TIMEZONE=America/Sao_Paulo
+      - PHP_MAX_EXECUTION_TIME=160
+      - PHP_DEBUGGER=none
+      - TZ=America/Sao_Paulo
+    volumes:
+      - ./:/app
+      - .docker/consumer/php-fpm.conf:/opt/docker/etc/supervisor.d/php-fpm.conf
+    networks:
+      - mail-service-network
+    depends_on:
+      - rabbitmq
+
+networks:
+  mail-service-network:
+    driver: bridge
